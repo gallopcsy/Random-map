@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>随机地图生成器</title>
+  <!-- 引入leaflet的样式文件 -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+    integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+    crossorigin=""/>
+  <!-- 定义自己的样式 -->
+  <style>
+    body, html {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    #map {
+      height: 100%;
+      width: 100%;
+    }
+    #button {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 999;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <!-- 添加一个按钮，用于重新生成地图 -->
+  <button id="button">重新生成</button>
+  <!-- 引入leaflet的脚本文件 -->
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+    integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
+    crossorigin=""></script>
+  <!-- 定义自己的脚本 -->
+  <script>
+    // 定义随机范围的最大值和最小值
+    var maxLat = 80; // 最大纬度
+    var minLat = -60; // 最小纬度
+    var maxLng = 180; // 最大经度
+    var minLng = -180; // 最小经度
+
+    // 创建地图，并设置初始缩放级别，完全删除归因
+    var map = L.map('map', { minZoom: 5, maxZoom: 15, attributionControl: false }).setView([0, 0], 5);
+
+    // 添加瓦片图层到地图
+    var tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    });
+    
+    // 处理瓦片加载错误
+    tileLayer.on('tileerror', function(error, tile) {
+      console.log('瓦片加载错误:', error, tile);
+      // 在这里可以添加适当的错误处理代码
+    });
+
+    tileLayer.addTo(map);
+
+    // 定义一个变量，用于存储当前的随机范围
+    var currentBounds;
+
+    // 定义一个函数，用于生成随机范围，并根据范围调整地图视图和添加标记
+    function generateMap() {
+      // 在定义的范围内生成随机范围
+      var southWest = L.latLng(Math.random() * (maxLat - minLat) + minLat, Math.random() * (maxLng - minLng) + minLng);
+      var northEast = L.latLng(Math.random() * (maxLat - minLat) + minLat + 10, Math.random() * (maxLng - minLng) + minLng + 10);
+      var bounds = L.latLngBounds(southWest, northEast);
+
+      // 检查新的范围是否和当前的范围重叠，如果是，则重新生成
+      if (currentBounds && currentBounds.overlaps(bounds)) {
+        generateMap();
+        return;
+      }
+
+      // 更新当前的范围为新的范围
+      currentBounds = bounds;
+
+      // 根据新的范围调整地图视图
+      map.fitBounds(bounds);
+
+      // 获取地图中心的坐标
+      var center = map.getCenter();
+
+      // 移除地图上已有的标记
+      map.eachLayer(function(layer) {
+        if (layer instanceof L.Marker) {
+          map.removeLayer(layer);
+        }
+      });
+
+      // 在地图中心添加一个标记
+      L.marker(center).addTo(map);
+    }
+
+    // 调用函数，生成初始的地图
+    generateMap();
+
+    // 获取按钮元素，并添加点击事件监听器
+    var button = document.getElementById('button');
+    button.addEventListener('click', function() {
+      // 点击按钮时，重新生成地图
+      generateMap();
+    });
+  </script>
+</body>
+</html>
