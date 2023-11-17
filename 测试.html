@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>随机地图生成器</title>
+    <!-- 引入Leaflet的样式文件 -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+          integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+          crossorigin=""/>
+    <script src="http://api.tianditu.gov.cn/api?v=4.0&tk=b1ae5a87ceab5e23d2ec414743d4d406" type="text/javascript"></script>
+    <style>
+      body, html {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      #map {
+        height: 100%;
+        width: 100%;
+      }
+      #controls {
+        position: absolute;
+        top: 10px;
+        right: 50px;
+        z-index: 999;
+      }
+      #button {
+        position: absolute;
+        top: 60px;
+        right: 10px;
+        z-index: 999;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <div id="controls"></div>
+    <!-- 添加一个输入框和一个提交按钮 -->
+    <div id="input">
+      <input type="text" id="country" placeholder="请输入你猜测的国家名">
+      <button id="submit">提交</button>
+    </div>
+    <!-- 添加一个显示结果的区域 -->
+    <div id="result"></div>
+    <!-- 添加一个按钮，用于重新生成地图 -->
+    <button id="button">继续!</button>
+    <!-- 引入Leaflet的脚本文件 -->
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+            integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
+            crossorigin=""></script>
+    <script>
+      // 定义随机范围的最大值和最小值
+      const maxLat = 80; // 最大纬度
+      const minLat = -60; // 最小纬度
+      const maxLng = 180; // 最大经度
+      const minLng = -180; // 最小经度
+      const map = L.map('map', { minZoom: 5, maxZoom: 15, attributionControl: false }).setView([0, 0], 5);
+      var retryLimit = 5; // 设置重试次数限制
+      var retryCount = 0; // 当前重试次数
+      // 不含地名的地图服务
+      const noLabelsLayer1 = L.tileLayer('https://t0.tianditu.gov.cn/vec_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=vec&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=b1ae5a87ceab5e23d2ec414743d4d406', {
+        attribution: '© 天地图 - 矢量'
+      });
+      const noLabelsLayer2 = L.tileLayer('https://t0.tianditu.gov.cn/img_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=img&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=b1ae5a87ceab5e23d2ec414743d4d406', {
+        attribution: '© 天地图 - 影像'
+      });
+      const noLabelsLayer3 = L.tileLayer('https://t0.tianditu.gov.cn/ter_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ter&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=b1ae5a87ceab5e23d2ec414743d4d406', {
+        attribution: '© 天地图 - 地形'
+      });
+      // 只显示地名的透明图层
+      var labelsLayer = L.tileLayer('https://t0.tianditu.gov.cn/cva_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=cva&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=b1ae5a87ceab5e23d2ec414743d4d406', {
+        attribution: '© 天地图 - 地名标签'
+      });
+      var ibo = L.tileLayer('https://t0.tianditu.gov.cn/ibo_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ibo&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=b1ae5a87ceab5e23d2ec414743d4d406', {
+        attribution: '© 天地图 - 全球境界'
+      });
+// 创建图层
+let lonLatGridLineLayer = L.featureGroup().addTo(map);
+// 经纬网格生成方法
+let addLonLatLine = () => {
+  let zoom = map.getZoom();
+  let bounds = map.getBounds();
+  let north = bounds.getNorth();
+  let east = bounds.getEast();
+  // 经纬度间隔，修改为10度
+  let d = 10;
+  // 经线网格
+  for (let index = -180; index <= 360; index += d) {
+    // 判断当前视野内
+    if (bounds.contains([north, index])) {
+      // 绘制经线（虚线，黑色，加粗）
+      let lonLine = L.polyline(
+        [
+          [-90, index],
+          [90, index],
+        ],
+        { weight: 2, color: "black", dashArray: [5, 5] } // 加粗线条
+      );
+      lonLatGridLineLayer.addLayer(lonLine);
+      // 标注（黑色，加粗）
+      let text = index.toFixed(1) + "°";
+      // 动态计算小数位数
+      if (zoom > 10) {
+        text = index.toFixed((zoom - 8) / 2) + "°";
+      }
+      let divIcon = L.divIcon({
+        html: `<div style="white-space: nowrap;color:black;font-weight:bold;">${text}</div>`, // 加粗字体
+        iconAnchor: [0, -5],
+      });
+      let textMarker = L.marker([north, index], { icon: divIcon });
+      lonLatGridLineLayer.addLayer(textMarker);
+    }
+  }
+  // 纬线网格
+  for (let index = -90; index <= 90; index += d) {
+    if (bounds.contains([index, east])) {
+      let lonLine = L.polyline(
+        [
+          [index, -180],
+          [index, 360],
+        ],
+        { weight: 2, color: "black", dashArray: [5, 5] } // 加粗线条
+      );
+      lonLatGridLineLayer.addLayer(lonLine);
+      // 标注（黑色，加粗）
+      let text = index.toFixed(1) + "°";
+      if (zoom > 10) {
+        text = index.toFixed((zoom - 8) / 2) + "°";
+      }
+      let divIcon = L.divIcon({
+        html: `<div style="white-space: nowrap;color:black;font-weight:bold;">${text}</div>`, // 加粗字体
+        iconAnchor: [(text.length + 1) * 6, 0],
+      });
+      let textMarker = L.marker([index, east], { icon: divIcon });
+      lonLatGridLineLayer.addLayer(textMarker);
+    }
+  }
+};
+map.on("load", addLonLatLine); // 确保地图加载后立即显示经纬度标注
+map.on("moveend", () => {
+  lonLatGridLineLayer.clearLayers();
+  addLonLatLine();
+});
+
+      var baseMaps = {
+        "矢量地图": noLabelsLayer1,
+        "影像地图": noLabelsLayer2,
+        "地形地图": noLabelsLayer3
+      };
+      
+      var overlayMaps = {
+        "地名": labelsLayer,
+        "全球境界": ibo
+      };
+
+      // 添加图层控制器
+      L.control.layers(baseMaps, overlayMaps).addTo(map);
+      noLabelsLayer1.addTo(map);
+      // 随机范围变量
+      var currentBounds;
+
+      // 随机范围生成函数
+      function generateMap() {
+    var bounds;
+    if (retryCount >= retryLimit) {
+        // 如果达到重试次数限制，则显示错误消息并停止重试
+        showResult('无法定位到有效的国家，请稍后再试。😥');
+        retryCount = 0; // 重置重试次数
+        return;}
+    do {
+        // 在定义的范围内生成随机范围
+        var southWest = L.latLng(Math.random() * (maxLat - minLat) + minLat, Math.random() * (maxLng - minLng) + minLng);
+        var northEast = L.latLng(Math.random() * (maxLat - minLat) + minLat + 10, Math.random() * (maxLng - minLng) + minLng + 10);
+        bounds = L.latLngBounds(southWest, northEast);
+    } while (currentBounds && currentBounds.overlaps(bounds));
+
+    currentBounds = bounds;
+    map.fitBounds(bounds);
+
+    var center = map.getCenter();
+    map.eachLayer(function (layer) {
+        if (layer instanceof L.Marker) {
+            map.removeLayer(layer);
+        } 
+    });
+
+    L.marker(center).addTo(map);
+
+    // 在生成新地图后调用 getCountryName 获取新位置的国家名称
+    getCountryName(function() {
+        // 这里可以添加任何额外的逻辑，比如更新页面上的信息等
+    });
+}
+
+// 初始地图生成
+generateMap();
+
+// 按钮事件监听器
+document.getElementById('button').addEventListener('click', generateMap);
+
+// 获取输入框，提交按钮和结果区域的元素
+var input = document.getElementById('country');
+var submit = document.getElementById('submit');
+var result = document.getElementById('result');
+const maxScore = 10;
+
+// 定义一个变量，用于存储正确的国家名
+var correctCountry;
+document.getElementById('submit').addEventListener('click', compareCountryName);
+function getCountryName() {
+    var center = map.getCenter();
+    var url = 'https://nominatim.openstreetmap.org/reverse?format=json&lat=' + center.lat + '&lon=' + center.lng;
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.onload = function() {
+        if (xhr.status === 200) {
+            var data = JSON.parse(xhr.responseText);
+            console.log("API Response:", data); // 查看完整的响应对象
+            // 确保 data.address 存在，并且包含国家名称
+            if (data.address && data.address.country) {
+                correctCountry = data.address.country;
+                retryCount = 0;
+            } else {
+                retryCount++;
+                generateMap();
+            }
+        } else {
+            console.error("API Error:", xhr.status, xhr.statusText);
+                retryCount++;
+                generateMap();
+        }
+    };
+    xhr.onerror = function() {
+        console.error("Network error");
+        retryCount++;
+        generateMap();
+    };
+    xhr.send();
+}
+
+function showResult(message) {
+    result.innerHTML = message;
+}
+function compareCountryName() {
+  var userCountry = input.value;
+  if (userCountry === '') {
+    showResult('你还没有输入呢，快点输入吧。😊');
+    return;
+  }
+  if (!correctCountry) {
+    showResult('请等待国家名获取完成再提交。😊');
+    return;
+  }
+  if (correctCountry.toLowerCase().includes(userCountry.toLowerCase().trim())) {
+    showResult('恭喜你，你猜对了！这里是' + correctCountry + '，你得了' + maxScore + '分。👏');
+  } else {
+    var distance = levenshteinDistance(userCountry, correctCountry);
+    var score = Math.max(0, maxScore - distance);
+    showResult('很遗憾，你猜错了。这里是' + correctCountry + '，你得了' + score + '分。😥');
+  }
+}
+    // 定义一个函数，用于计算两个字符串之间的Levenshtein距离
+    function levenshteinDistance(a, b) {
+      // 如果两个字符串相同，返回0
+      if (a === b) {
+        return 0;
+      }
+      // 如果其中一个字符串为空，返回另一个字符串的长度
+      if (a.length === 0) {
+        return b.length;
+      }
+      if (b.length === 0) {
+        return a.length;
+      }
+      // 定义一个二维数组，用于存储动态规划的结果
+      var matrix = [];
+      // 初始化第一行和第一列
+      for (var i = 0; i <= b.length; i++) {
+        matrix[i] = [i];
+      }
+      for (var j = 0; j <= a.length; j++) {
+        matrix[0][j] = j;
+      }
+      // 遍历两个字符串，计算每个子问题的最优解
+      for (var i = 1; i <= b.length; i++) {
+        for (var j = 1; j <= a.length; j++) {
+          // 如果两个字符相同，代价为0，否则为1
+          var cost = (a[j - 1] === b[i - 1]) ? 0 : 1;
+          // 取三种操作（插入，删除，替换）的最小值
+          matrix[i][j] = Math.min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j - 1] + cost);
+        }
+      }
+      // 返回最终结果
+      return matrix[b.length][a.length];
+    }
+    // 定义一个函数，用于显示结果
+    function showResult(message) {
+      result.innerHTML = message;
+    }
+    // 调用获取国家名的函数
+    getCountryName(function() {
+      // 给提交按钮添加点击事件监听器，调用比对国家名的函数
+      submit.addEventListener('click', compareCountryName);
+    });
+  </script>
+  </body>
+</html>
