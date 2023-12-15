@@ -1,0 +1,123 @@
+body, html {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+#map {
+  height: 100%;
+  width: 100%;
+  z-index: 0;
+}
+#controls {
+  position: absolute;
+  top: 10px;
+  right: 50px;
+  z-index: 999;
+}
+/* 整体容器样式 */
+.container {
+  position: relative;
+  height: 100%;
+  background-color: #f2f2f2; /* 更改为你想要的背景色 */
+}
+/* 地图图层样式 */
+.map {
+  height: 100%;
+  width: 100%;
+  z-index: 0;
+}
+/* 输入框和提交按钮包裹层样式 */
+.input-wrapper {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 20px; /* 距离底部的距离 */
+  text-align: center;
+  border-radius: 25px;
+  z-index: 1;
+}
+/* 输入框样式 */
+#country {
+  position: relative;
+  width: 300px;
+  height: 40px;
+  margin-bottom: 10px;
+  border-radius: 25px;
+  padding-right: 50px; /* 留出按钮宽度的空间 */
+}
+/* 提交按钮样式 */
+#submit {
+  cursor: pointer;
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 75px;
+  height: 40px;
+  border-radius: 25px;
+  background-color: #6eb6ff; /* 蓝色背景 */
+  color: #fff; /* 白色文字 */
+  border: none; /* 移除默认边框 */
+  margin: 0;
+  overflow: hidden;
+}
+#submit.canClick {
+  background: #1676FF;
+}
+#submit::after {
+  content: "";
+  background: #f1f1f1;
+  display: block;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 1000px;
+  height: 1000px;
+  border-radius: 100%;
+  opacity: 0;
+  transition: all 0.8s;
+}
+#submit.canClick:active::after {
+  width: 50px;
+  height: 50px;
+  opacity: 0.6;
+  transition: 0s;
+}
+.niceButton {
+  cursor: pointer;
+  position: absolute;
+  width: 75px;
+  height: 40px;
+  top:0;
+  right: -80px;
+  border-radius: 15px;
+  background-color: #6eb6ff; /* 蓝色背景 */
+  color: #fff; /* 白色文字 */
+  border: none; /* 移除默认边框 */
+  margin: 0;
+  overflow: hidden;
+  background-color: #fff; /* 按钮的背景颜色 */
+  color: #000; /* 文字颜色 */
+  box-shadow: 0 8px #999; /* 按钮的阴影 */
+  display: inline-block;
+  text-align: center;
+  text-decoration: none;
+  outline: none;
+  border: none;
+}
+.niceButton:hover {
+  background-color: #f2f2f2;
+}
+.niceButton:active {
+  background-color: #f2f2f2;
+  box-shadow: 0 5px #666;
+  transform: translateY(4px);
+}
+#result1 {
+  position: absolute; /* 将结果弹出框设置为绝对定位 */
+  bottom: 5px; /* 将结果弹出框放在最底部 */
+  left: 50%; /* 将结果弹出框的左边界放在容器的中心 */
+  transform: translateX(-50%); /* 使用transform将结果弹出框向左移动自身宽度的一半，实现居中 */
+  width: 300px;
+  white-space: nowrap;
+}
